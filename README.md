@@ -1,75 +1,178 @@
 # SoundRadar
 
-游戏音效实时识别助手（Windows）。听扬声器回环，对照本地音效库，在命中时提示“这是哪个音效”。
+**暗区突围 · 黑商交易听声辨物助手**（Windows 开源软件）
 
-本仓库是原 Go 版 `soundradar 0.6.x` 的 **Rust 原生性能重写**：CLI / `library.srz` / `config.json` / `index.bin` 格式兼容，热路径（帧 log-mel、滑窗指纹、i8 检索）显著加快。
+黑商交易、开箱、掉落时游戏里会播物品音效。本工具在本机做**扬声器回环监听 + 音效指纹比对**，立刻告诉你「刚才那声是什么物品」，方便边听边记、边交易边确认。
 
-## 功能
+> **开源项目，不是游戏作弊。**  
+> 不读内存、不注入进程、不改游戏数据、不自动交易、不加速/透视/锁血。  
+> 只做一件事：把**你自己听到的声音**和**你自己导入的音效样本**做本地比对，相当于一个「会认声的备忘录」。  
+> 协议：[GPL-3.0](LICENSE)。请遵守游戏用户协议与当地法律，风险自负。
 
-- `app`（双击默认）：管理 UI + 持续实时识别 + 覆盖层
-- `serve`：音效库管理网页 + JSON API（仅 127.0.0.1）
-- `match`：用 wav/mp3 识别音效
-- `index rebuild`：构建 mel-goertzel-v1 指纹索引（SRZ1）
-- `live` / `overlay` / `recall` / `capture` / `devices` / `version`
+---
 
-## 算法
+## 能做什么
+
+| 场景 | 用法 |
+|------|------|
+| 黑商列表刷新 | 听到「叮」一声 → 覆盖层提示物品名，例如「古董茶壶」 |
+| 快速确认 | 不用切网页查表，靠声音就知道是哪一件 |
+| 补样本 | 热键 F8 回溯最近 3 秒，存成候选，一键入库 |
+| 多物品库 | 每条音效一个条目，可贴图标、名称、标签、备注 |
+
+支持的识别输入只有系统正在播放的声音（扬声器/耳机输出回环），**不抓包、不读游戏进程**。
+
+## 和「外挂」的区别
+
+| | 本项目 | 游戏作弊 |
+|--|--------|----------|
+| 数据来源 | 系统音频回环（你也能听见的） | 游戏内存 / 网络包 / 内核 |
+| 是否改游戏 | 否 | 是 |
+| 是否注入 | 否 | 是 |
+| 是否联网上传 | 否（管理端仅 127.0.0.1） | 常有 |
+| 开源 | 是（GPL-3.0） | 通常闭源 |
+
+---
+
+## 快速开始
+
+### 1. 获取
+
+- 源码：本仓库 → `git clone` 后 `cargo build --release`  
+  产物：`target\release\soundradar.exe`
+- 或使用他人提供的便携包（内含 `soundradar.exe` + `使用说明.txt`）
+
+系统要求：Windows 10 / 11 64 位，无需安装运行库。
+
+### 2. 运行
+
+**双击 `soundradar.exe`** 即可（无参数 = 完整模式）。
+
+会自动：
+1. 在 `http://127.0.0.1:8765/` 打开管理网页  
+2. 开始持续听声识别  
+3. 命中时在黑窗口打印，并尝试弹出覆盖层
+
+退出：关掉黑色控制台窗口，或 `Ctrl+C`。  
+SmartScreen 拦截：点「更多信息」→「仍要运行」。
+
+### 3. 建自己的音效库（必做）
+
+识别准确度完全取决于**你的样本**。
+
+1. 浏览器打开 `http://127.0.0.1:8765/`
+2. 「音效库」→ **+ 新增条目**
+3. 名称填物品名（如 `狮子`、`古董茶壶`）
+4. 上传该物品的 **wav / mp3** 样本（1～3 秒干净音效即可）
+5. 保存；程序会自动重建索引（第一次稍慢）
+
+> 建议：每种物品至少 1 个清晰样本；背景噪声越少越好。  
+> 样本请自行录制/整理，**不要分发含有他人版权音频的库文件**。
+
+### 4. 开始用
+
+保持 `soundradar.exe` 运行，游戏里有音效时：
+
+```text
+命中  古董茶壶            0.98  @ 1.62s
+```
+
+覆盖层会在屏幕角落显示图标 + 名称 + 分数（可在「设置」里调位置/大小/透明度）。
+
+---
+
+## 日常操作
+
+### 管理网页 `http://127.0.0.1:8765/`
+
+| 页签 | 用途 |
+|------|------|
+| 音效库 | 增删改物品、传样本、改名称/阈值 |
+| 实时打分 | 看识别流水 |
+| 候选项 | F8 回溯的录音，可试听 / 删除 / **转正入库** |
+| 设置 | 覆盖层、采集设备、热键 |
+
+### 热键（`config.json` 可改）
+
+| 键 | 作用 |
+|----|------|
+| **F8** | 回溯保存：把最近几秒声音存成候选 wav（错过的声音可补样本） |
+| **F9** | 开关覆盖层 |
+
+### 命令行（可选）
+
+```text
+soundradar.exe                          # 双击 = app 完整模式
+soundradar.exe match --wav 录音.wav     # 用一段录音离线识别
+soundradar.exe serve --open             # 只开管理端
+soundradar.exe index rebuild            # 手动重建索引
+soundradar.exe recall --seconds 3       # 立刻回溯存 3 秒
+soundradar.exe version                  # 版本
+```
+
+---
+
+## 技术简介
 
 | 项 | 值 |
 |----|----|
-| 特征 | mel-goertzel-v1 |
-| 维数 | 2048 = 64 Mel × 32 帧 |
-| 帧 | 48 kHz / 1024 / hop 256（5.333 ms）/ Hann 周期窗 / 去直流 |
-| 归一化 | mean-subtract + L2（余弦 = 点积） |
-| 存储 | i8 量化，SRZ1 索引 |
+| 语言 | Rust（Windows x64 原生，无 CGO） |
+| 采集 | WASAPI shared + LOOPBACK（扬声器回环） |
+| 特征 | mel-goertzel-v1，2048 = 64 Mel × 32 帧 |
+| 帧参数 | 48 kHz / 1024 / hop 256 / Hann 周期窗 / 去直流 |
+| 比对 | mean-subtract + L2，余弦 = i8 点积 |
+| 库文件 | `data\library.srz`（ZIP） |
+| 索引 | `data\index.bin`（SRZ1） |
+| 管理端 | 内嵌网页，仅监听 `127.0.0.1` |
+
+相对旧 Go 版：match 检索约 **5–11 ms**（原 55–78 ms），二进制约 **3 MB**。
+
+### 目录结构
+
+```text
+soundradar.exe        主程序
+config.json           覆盖层 / 热键 / 回溯设置
+data\library.srz      音效库（自己的样本）
+data\index.bin        识别索引（自动重建）
+data\candidates\      回溯候选录音
+```
+
+---
 
 ## 构建
 
 ```powershell
+git clone https://github.com/Bronsan/soundradar.git
+cd soundradar
 cargo build --release
-# 产物 target\release\soundradar.exe
 ```
 
-依赖：Rust 1.70+，Windows 10/11 x64。无 CGO。
+依赖：Rust 1.70+。
 
-## 使用
+---
 
-```text
-soundradar.exe                 # 双击 / 无参数 → 完整应用
-soundradar.exe match --wav a.wav
-soundradar.exe serve --open
-soundradar.exe index rebuild
-soundradar.exe version
-```
+## 常见问题
 
-详细步骤见发行包内 `使用说明.txt`。
+**一直不命中？**  
+① 是否已导入样本并保存；② 游戏声音是否从本机输出（耳机也要走回环设备）；③ 在「设置」里把阈值调低。
 
-## 性能（相对 0.6.x Go 版，9 条 3s 样本）
+**覆盖层不显示？**  
+设置里打开覆盖层；检查多显示器的 monitor/anchor；部分全屏独占游戏会挡住覆盖层，可改无边框窗口。
 
-| 路径 | Go | Rust |
-|------|----|------|
-| match 检索 | 55–78 ms | 5–11 ms |
-| match 进程墙钟 | 70–150 ms | 21–29 ms |
-| index rebuild | ~294 ms | ~116 ms |
-| 二进制 | 13.5 MB | 3.0 MB |
+**双击秒退？**  
+文件夹地址栏输入 `cmd`，执行 `soundradar.exe` 看报错；或用管理员运行一次。
 
-## 目录
+**会封号吗？**  
+本项目不修改、不注入游戏，只做音频识别。是否符合游戏条款由你自行判断；本项目按 GPL-3.0 提供，**不作任何担保**。
 
-```text
-src/main.rs        CLI 入口（无参数 = app）
-src/dsp.rs         mel / FFT / 指纹
-src/index.rs       SRZ1 索引与检索
-src/library.rs     library.srz（ZIP）读写
-src/wav.rs         WAV/PCM
-src/win.rs         WASAPI 回环 / 覆盖层
-src/serve.rs       管理 UI + API
-src/static/        内嵌网页
-```
+**如何重置？**  
+删 `config.json` 和 `data\index.bin`（不会删你的 `library.srz`）。
 
-## 许可
+---
 
-[GPL-3.0-only](LICENSE)
+## 许可与声明
 
-## 声明
-
-- 仅回环采集本机扬声器，不上传网络；管理端只绑定 127.0.0.1。
-- 音效库由使用者自行准备；请勿分发含有他人版权音频的 `library.srz`。
+- 许可证：[GNU GPL v3.0](LICENSE)
+- Copyright (C) 2026 Bronsan
+- 本软件**不是**游戏外挂/作弊工具，不含内存修改、进程注入、自动瞄准等功能。
+- 使用者须自行确保样本与用法合法合规；因使用造成的任何后果与作者无关。
