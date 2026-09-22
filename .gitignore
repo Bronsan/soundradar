@@ -1,0 +1,10 @@
+/target
+**/*.rs.bk
+*.pdb
+*.wav
+*.mp3
+data/candidates/
+data/library.srz
+data/index.bin
+config.json
+_soundradar.exe.bak

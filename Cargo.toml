@@ -1,0 +1,47 @@
+[package]
+name = "soundradar"
+version = "0.7.0"
+edition = "2021"
+description = "SoundRadar — game sound recognition assistant (performance rewrite)"
+license = "GPL-3.0-only"
+
+[[bin]]
+name = "soundradar"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+byteorder = "1"
+clap = { version = "4", features = ["derive"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
+memmap2 = "0.9"
+rayon = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+symphonia = { version = "0.5", features = ["all"] }
+tiny_http = "0.12"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+# Windows audio / overlay / hotkey
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_Media_Audio",
+    "Win32_System_Com",
+    "Win32_System_LibraryLoader",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_Graphics_Gdi",
+    "Win32_UI_HiDpi",
+    "Win32_System_Threading",
+    "Win32_Security",
+] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+panic = "abort"
+strip = true
+
+[profile.dev]
+opt-level = 1
