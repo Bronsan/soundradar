@@ -641,7 +641,7 @@ fn cmd_app(
     println!("  管理端   : http://127.0.0.1:{}/", port);
     println!(
         "  覆盖层   : {}",
-        if cfg.overlay.enabled { "开" } else { "关" }
+        if cfg.overlay.enabled { "开（悬浮窗）" } else { "关" }
     );
     println!(
         "  热键     : 回溯 {} / 开关覆盖层 {}",
@@ -649,6 +649,21 @@ fn cmd_app(
     );
     println!("  退出     : 关闭本窗口或 Ctrl+C");
     println!();
+
+    // 启动悬浮窗
+    if cfg.overlay.enabled {
+        #[cfg(windows)]
+        {
+            crate::overlay_win::set_geometry(
+                cfg.overlay.x,
+                cfg.overlay.y,
+                cfg.overlay.size,
+                cfg.overlay.opacity,
+            );
+            crate::overlay_win::spawn_overlay_thread()?;
+            println!("[app] 悬浮窗已启动（右下角，点击穿透）");
+        }
+    }
 
     let serve_lib = Some(lib.clone());
     let serve_cfg = config.clone();
@@ -662,6 +677,11 @@ fn cmd_app(
             if rebuilt && !why.is_empty() {
                 println!("[app] 索引已重建：{}", why);
             }
+            let _ = crate::overlay_win::show_hit(
+                &format!("音效库已加载 · {} 条", idx.items.len()),
+                1.0,
+                None,
+            );
             std::sync::Arc::new(idx)
         }
         Err(e) => {
@@ -703,7 +723,7 @@ fn cmd_app(
             );
             #[cfg(windows)]
             {
-                let _ = crate::win::show_hit(&h.name, h.score, None);
+                let _ = crate::overlay_win::show_hit(&h.name, h.score, None);
             }
         }
         if now != last_ids {
@@ -794,4 +814,5 @@ mod win;
 mod serve;
 mod live;
 mod overlay_ui;
+mod overlay_win;
 mod recall;

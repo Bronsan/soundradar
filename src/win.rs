@@ -189,9 +189,8 @@ pub fn overlay_available() -> bool {
     true
 }
 
-pub fn show_hit(_name: &str, _score: f32, _icon: Option<&[u8]>) -> Result<()> {
-    // Native popup is optional; serve UI + console live view cover the feature.
-    Ok(())
+pub fn show_hit(name: &str, score: f32, icon: Option<&[u8]>) -> Result<()> {
+    crate::overlay_win::show_hit(name, score, icon)
 }
 
 pub fn parse_err(e: windows::core::Error) -> anyhow::Error {
