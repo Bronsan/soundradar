@@ -113,6 +113,19 @@ pub struct Index {
 }
 
 impl Index {
+    /// Build from store; empty store → empty index (never error).
+    pub fn empty() -> Index {
+        let params = Params::default();
+        Index {
+            params_fingerprint: params.fingerprint(),
+            params,
+            items: vec![],
+            samples: vec![],
+            patches: vec![],
+            anchors: vec![],
+        }
+    }
+
     pub fn samples_bytes(&self) -> usize {
         self.patches.len() * DIM
     }

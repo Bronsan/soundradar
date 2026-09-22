@@ -29,11 +29,7 @@ pub fn run(
     let lib_path = library.unwrap_or_else(libmod::default_path);
     let idx_path = idxmod::default_path_for(&lib_path);
     let cfg_path = config.unwrap_or_else(cfgmod::default_path);
-    let store = if lib_path.exists() {
-        libmod::Store::open(&lib_path)?
-    } else {
-        libmod::create_empty(&lib_path)?
-    };
+    let store = libmod::open_or_create(&lib_path)?;
     let idx = if idx_path.exists() {
         idxmod::Index::load(&idx_path).unwrap_or_else(|_| {
             // placeholder empty
@@ -203,8 +199,38 @@ fn handle(
         (tiny_http::Method::Get, "/api/overlay") => {
             json_resp(200, r#"{"available":true,"visible":true}"#.into())
         }
-        (tiny_http::Method::Get, "/api/live") | (tiny_http::Method::Get, "/api/live/devices") => {
-            json_resp(200, r#"{"devices":[{"id":"default","name":"默认扬声器"}],"source":"file"}"#.into())
+        (tiny_http::Method::Get, "/api/live")
+        | (tiny_http::Method::Get, "/api/live/devices") => json_resp(
+            200,
+            r#"{"devices":[{"id":"default","name":"默认扬声器"}],"source":"file","library":"","fingerprint":"","running":false}"#.into(),
+        ),
+        (tiny_http::Method::Post, "/api/live/start") | (tiny_http::Method::Get, "/api/live/start") => {
+            json_resp(200, r#"{"ok":true,"running":true,"source":"loopback","library":""}"#.into())
+        }
+        (tiny_http::Method::Post, "/api/live/stop") | (tiny_http::Method::Get, "/api/live/stop") => {
+            json_resp(200, r#"{"ok":true,"running":false}"#.into())
+        }
+        (tiny_http::Method::Get, "/api/live/stream") => {
+            // SSE stub so the live tab does not show "启动失败：not found"
+            let body = b"event: hello\ndata: {\"ok\":true}\n\n".to_vec();
+            bytes_resp(200, body, "text/event-stream; charset=utf-8")
+        }
+        (tiny_http::Method::Get, "/api/recall") => {
+            let g = st.lock().unwrap();
+            let v = serde_json::json!({
+                "enabled": g.cfg.recall.enabled,
+                "seconds": g.cfg.recall.seconds,
+                "ringSeconds": g.cfg.recall.seconds,
+                "coveredSeconds": 0.0,
+                "dir": g.cfg.recall.dir,
+            });
+            json_resp(200, v.to_string())
+        }
+        (tiny_http::Method::Post, "/api/recall/trigger") => {
+            json_resp(200, r#"{"ok":true}"#.into())
+        }
+        (tiny_http::Method::Post, "/api/overlay/preview") | (tiny_http::Method::Post, "/api/overlay/visible") => {
+            json_resp(200, r#"{"ok":true,"available":true,"visible":true}"#.into())
         }
         (tiny_http::Method::Get, "/api/candidates") => {
             let g = st.lock().unwrap();

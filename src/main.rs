@@ -281,10 +281,8 @@ fn resolve_index(path: Option<PathBuf>, lib: &std::path::Path) -> PathBuf {
 }
 
 fn load_store(lib_path: &PathBuf) -> Result<crate::library::Store> {
-    if !lib_path.exists() {
-        bail!("音效库不存在: {}", lib_path.display());
-    }
-    crate::library::Store::open(lib_path)
+    crate::library::open_or_create(lib_path)
+        .with_context(|| format!("打开音效库 {}", lib_path.display()))
 }
 
 /// Load index; rebuild patches when encoder fingerprint differs (format stays compatible).
@@ -658,12 +656,26 @@ fn cmd_app(
         let _ = cmd_serve(port, true, serve_lib, true, serve_cfg);
     });
 
-    // 确保索引就绪
-    let (idx, rebuilt, why) = load_index(&lib, &idx_path)?;
-    if rebuilt && !why.is_empty() {
-        println!("[app] 索引已重建：{}", why);
-    }
-    let idx = std::sync::Arc::new(idx);
+    // 确保索引就绪（失败不退出，仅提示）
+    let idx = match load_index(&lib, &idx_path) {
+        Ok((idx, rebuilt, why)) => {
+            if rebuilt && !why.is_empty() {
+                println!("[app] 索引已重建：{}", why);
+            }
+            std::sync::Arc::new(idx)
+        }
+        Err(e) => {
+            eprintln!("[app] 索引未就绪（请先在管理端添加样本）: {:#}", e);
+            std::sync::Arc::new(index::Index {
+                params: index::Params::default(),
+                params_fingerprint: index::Params::default().fingerprint(),
+                items: vec![],
+                samples: vec![],
+                patches: vec![],
+                anchors: vec![],
+            })
+        }
+    };
     let min_score = 0.75f32;
     let mut last_ids: Vec<String> = Vec::new();
 

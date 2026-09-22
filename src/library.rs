@@ -208,7 +208,10 @@ impl Store {
 
 pub fn default_path() -> PathBuf {
     let exe = std::env::current_exe().unwrap_or_default();
-    let dir = exe.parent().map(|p| p.to_path_buf()).unwrap_or_default();
+    let dir = exe
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
     let candidate = dir.join("data").join("library.srz");
     if candidate.exists() {
         return candidate;
@@ -218,7 +221,21 @@ pub fn default_path() -> PathBuf {
     if c2.exists() {
         return c2;
     }
+    // prefer next to the exe even if missing — caller will create it
     candidate
+}
+
+/// Open library; if missing, create an empty one on disk so first-run never dies.
+pub fn open_or_create(path: &Path) -> Result<Store> {
+    if path.exists() {
+        return Store::open(path);
+    }
+    let store = create_empty(path)?;
+    if let Some(p) = path.parent() {
+        let _ = std::fs::create_dir_all(p);
+    }
+    save(path, &store)?;
+    Ok(Store::open(path).unwrap_or(store))
 }
 
 pub fn new_id() -> String {
@@ -290,20 +307,22 @@ pub fn is_empty_store(path: &Path) -> bool {
 
 pub fn create_empty(path: &Path) -> Result<Store> {
     let now = chrono_like_now();
-    let store = Store {
+    if let Some(p) = path.parent() {
+        let _ = std::fs::create_dir_all(p);
+    }
+    Ok(Store {
         path: path.to_path_buf(),
         manifest: Manifest {
             schema: 1,
             name: "未命名音效库".into(),
-            created_at: now.clone(),
+            created_at: now,
             feature: FeatureSpec::default(),
             items: vec![],
         },
         items: BTreeMap::new(),
         order: vec![],
         blobs: BTreeMap::new(),
-    };
-    Ok(store)
+    })
 }
 
 fn chrono_like_now() -> String {
